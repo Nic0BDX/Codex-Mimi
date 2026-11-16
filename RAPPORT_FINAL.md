@@ -1,5 +1,9 @@
 # Les Soirées de Mimi et Nini
 
+Publication privée confirmée sur
+https://soiree-nini-copie.coralaspen259.chatgpt.site.
+Les sources sont publiées dans https://github.com/Nic0BDX/Codex-Mimi, branche `main`.
+
 Copie autonome et modifiable de l’interface crème, violet et orange des Soirées de
 Dédé : cartes à bordure épaisse, illustrations originales, typographies Baloo 2
 et Nunito, navigation mobile, inventaire et thèmes clair/sombre.

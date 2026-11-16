@@ -3,4 +3,7 @@
 - [x] Conserver MÉGANOPOLY et retirer les anciens jeux de l’interface.
 - [x] Connexion PIN, sauvegarde, soirées, invitations, chat et statistiques persistants.
 - [x] Tester les deux profils, les parties à deux et contre un robot, sur mobile et ordinateur.
-- [ ] Publier la copie et les sources dans Codex-Mimi, puis écrire RAPPORT_FINAL.md.
+- [x] Publier la copie et les sources dans Codex-Mimi, puis écrire RAPPORT_FINAL.md.
+
+Publication privée confirmée : https://soiree-nini-copie.coralaspen259.chatgpt.site.
+Sources : https://github.com/Nic0BDX/Codex-Mimi, branche main.
