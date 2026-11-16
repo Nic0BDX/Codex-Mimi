@@ -2,6 +2,7 @@ import { database } from "../../../db/vercel";
 import { siteConfig } from "../../config";
 import { meganopoly, estateStateSchema } from "../../game/meganopoly/engine";
 import type { CoreState } from "../../game/engine/types";
+import { partyGames, PARTY_GAMES, type PartyState } from "../../game/party";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -28,6 +29,7 @@ type Room = {
   version: number;
   capacity: number;
   round_limit: number;
+  game_id: string;
   updated: number;
   created: number;
   winner: string | null;
@@ -164,7 +166,7 @@ async function getRoom(id: string, p: Profile) {
 }
 async function save(
   r: Room,
-  state: CoreState | null,
+  state: CoreState | PartyState | null,
   players: Player[] = JSON.parse(r.players),
   status?: string,
 ) {
@@ -202,6 +204,25 @@ async function save(
 }
 async function tick(r: Room) {
   if (r.status !== "playing" || !r.state) return r;
+  if (r.game_id !== "meganopoly") {
+    const state = JSON.parse(r.state) as PartyState;
+    const id = state.players[state.turnIndex]!;
+    if (state.gameId === "dessine-devine" && state.phase === "guess" && id.startsWith("bot:") && Date.now() - r.updated < 30000) return r;
+    const action = id.startsWith("bot:") && Date.now() - r.updated >= 700
+      ? partyGames.botAction(state, id, rng)
+      : Date.now() - r.updated >= 60000
+        ? partyGames.botAction(state, id, rng)
+        : null;
+    if (!action) return r;
+    const result = partyGames.applyAction(state, id, action, rng);
+    if (!result.ok) return r;
+    try { return await save(r, result.state); }
+    catch (e) {
+      if (e instanceof Failure && e.code === 409)
+        return (await db().prepare("SELECT * FROM rooms WHERE id=?").bind(r.id).first<Room>())!;
+      throw e;
+    }
+  }
   const state = estateStateSchema.parse(JSON.parse(r.state)),
     id = state.players[state.turn]!;
   const action =
@@ -229,7 +250,9 @@ function view(r: Room, p: Profile) {
     ...r,
     players: JSON.parse(r.players),
     state: undefined,
-    view: r.state ? meganopoly.getPlayerView(JSON.parse(r.state), p.id) : null,
+    view: r.state ? r.game_id === "meganopoly"
+      ? meganopoly.getPlayerView(JSON.parse(r.state), p.id)
+      : partyGames.getPlayerView(JSON.parse(r.state) as PartyState, p.id) : null,
   };
 }
 async function stats() {
@@ -366,7 +389,7 @@ async function dispatch(req: Request, headers: Headers) {
   if (path[0] === "home") {
     const rooms = await db()
       .prepare(
-        "SELECT id,code,host,status,players,created FROM rooms r WHERE status IN ('lobby','playing') AND EXISTS(SELECT 1 FROM jsonb_array_elements(r.players::jsonb) a WHERE a->>'id'=?) ORDER BY created DESC LIMIT 10",
+        "SELECT id,code,host,status,players,created,game_id FROM rooms r WHERE status IN ('lobby','playing') AND EXISTS(SELECT 1 FROM jsonb_array_elements(r.players::jsonb) a WHERE a->>'id'=?) ORDER BY created DESC LIMIT 10",
       )
       .bind(p.id)
       .all();
@@ -406,14 +429,18 @@ async function dispatch(req: Request, headers: Headers) {
     const b = await json(),
       bots = Number(b.bots ?? 0),
       capacity = Number(b.capacity ?? 2),
-      rounds = Number(b.roundLimit ?? 40);
+      rounds = Number(b.roundLimit ?? 40),
+      gameId = String(b.gameId ?? "meganopoly"),
+      game = gameId === "meganopoly" ? { min: 2, max: 6 } : PARTY_GAMES.find((x) => x.id === gameId);
+    if (!game) throw new Failure(400, "Jeu inconnu.");
     requireRule(
       Number.isInteger(capacity) &&
-        capacity >= 2 &&
-        capacity <= 6 &&
+        capacity >= game.min &&
+        capacity <= game.max &&
         Number.isInteger(bots) &&
         bots >= 0 &&
         bots < capacity &&
+        bots <= capacity - 1 &&
         Number.isInteger(rounds) &&
         rounds >= 10 &&
         rounds <= 100,
@@ -442,7 +469,7 @@ async function dispatch(req: Request, headers: Headers) {
     ];
     await db()
       .prepare(
-        "INSERT INTO rooms(id,code,host,players,capacity,round_limit,updated,created) VALUES(?,?,?,?,?,?,?,?)",
+        "INSERT INTO rooms(id,code,host,players,capacity,round_limit,updated,created,game_id) VALUES(?,?,?,?,?,?,?,?,?)",
       )
       .bind(
         id,
@@ -453,6 +480,7 @@ async function dispatch(req: Request, headers: Headers) {
         rounds,
         Date.now(),
         Date.now(),
+        gameId,
       )
       .run();
     return { id };
@@ -536,18 +564,18 @@ async function dispatch(req: Request, headers: Headers) {
       }
     }
     if (action === "start" && method === "POST") {
+      const gameInfo = PARTY_GAMES.find((x) => x.id === r.game_id),
+        minPlayers = r.game_id === "meganopoly" ? 2 : gameInfo?.min ?? 2;
       requireRule(
         r.host === p.id &&
           r.status === "lobby" &&
-          players.length >= 2 &&
+          players.length >= minPlayers &&
           players.every((x) => x.ready),
         "Tous les joueurs doivent être prêts ; seul l’hôte peut lancer.",
       );
-      const state = meganopoly.createInitialState(
-        players.map((x) => x.id),
-        { roundLimit: r.round_limit },
-        rng,
-      );
+      const state = r.game_id === "meganopoly"
+        ? meganopoly.createInitialState(players.map((x) => x.id), { roundLimit: r.round_limit }, rng)
+        : partyGames.createInitialState(r.game_id as PartyState["gameId"], players.map((x) => x.id), rng);
       return view(await save(r, state), p);
     }
     if (action === "action" && method === "POST") {
@@ -561,20 +589,23 @@ async function dispatch(req: Request, headers: Headers) {
         "La partie a évolué : réessaie ton action.",
         409,
       );
-      const result = meganopoly.applyAction(
-        JSON.parse(r.state!),
-        p.id,
-        b.action,
-        rng,
-      );
+      const result = r.game_id === "meganopoly"
+        ? meganopoly.applyAction(JSON.parse(r.state!), p.id, b.action, rng)
+        : partyGames.applyAction(JSON.parse(r.state!) as PartyState, p.id, b.action as Record<string, any>, rng);
       requireRule(result.ok, "Ce coup n’est pas autorisé.");
       return view(await save(r, result.ok ? result.state : null), p);
     }
     if (action === "leave" && method === "POST") {
       if (r.status === "playing" && r.state) {
-        const s = estateStateSchema.parse(JSON.parse(r.state));
-        if (!s.eliminated.includes(s.players.indexOf(p.id)))
-          await save(r, meganopoly.forfeit(s, p.id, rng));
+        if (r.game_id === "meganopoly") {
+          const s = estateStateSchema.parse(JSON.parse(r.state));
+          if (!s.eliminated.includes(s.players.indexOf(p.id)))
+            await save(r, meganopoly.forfeit(s, p.id, rng));
+        } else {
+          const s = JSON.parse(r.state) as PartyState;
+          s.finished = true; s.phase = "finished"; s.ranking = s.players.filter((id) => id !== p.id);
+          await save(r, s);
+        }
       } else if (r.status === "lobby") {
         if (r.host === p.id) await save(r, null, players, "cancelled");
         else

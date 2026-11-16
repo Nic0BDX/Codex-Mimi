@@ -25,3 +25,4 @@ CREATE INDEX IF NOT EXISTS sessions_expiry ON mimi_nini.sessions (expires);
 CREATE INDEX IF NOT EXISTS rooms_host_status ON mimi_nini.rooms (host,status);
 CREATE INDEX IF NOT EXISTS messages_room_created ON mimi_nini.messages (room,created);
 CREATE INDEX IF NOT EXISTS invitations_recipient ON mimi_nini.invitations (recipient,room);
+ALTER TABLE mimi_nini.rooms ADD COLUMN IF NOT EXISTS game_id TEXT NOT NULL DEFAULT 'meganopoly';

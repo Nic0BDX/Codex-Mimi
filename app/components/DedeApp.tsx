@@ -23,7 +23,9 @@ import {
 } from "lucide-react";
 import { siteConfig } from "../config";
 import { MeganopolyGame } from "./MeganopolyGame";
+import { PartyGame } from "./PartyGame";
 import type { EngineView } from "../game/engine/types";
+import { PARTY_GAMES, type PartyState } from "../game/party";
 import "../soiree.css";
 import "../meganopoly.css";
 type Profile = {
@@ -40,10 +42,11 @@ type Room = {
   host: string;
   status: string;
   players: Player[];
-  view: EngineView | null;
   version: number;
   capacity: number;
   round_limit: number;
+  game_id: string;
+  view: (EngineView | (PartyState & { turn: string | null; legalActions: unknown[] })) | null;
 };
 type Stats = {
   id: string;
@@ -54,7 +57,7 @@ type Stats = {
   wins: number;
 };
 type HomeData = {
-  rooms: { id: string; code: string; status: string }[];
+  rooms: { id: string; code: string; status: string; game_id: string }[];
   stats: Stats[];
   profiles: Profile[];
   invitations: { id: string; room: string; code: string; name: string }[];
@@ -146,6 +149,7 @@ export default function DedeApp() {
     [theme, setTheme] = useState("system"),
     [sound, setSound] = useState(true),
     [modal, setModal] = useState<"create" | "join" | null>(null),
+    [selectedGame, setSelectedGame] = useState("meganopoly"),
     [rules, setRules] = useState(false);
   const [messages, setMessages] = useState<
     { id: string; name: string; body: string }[]
@@ -303,6 +307,16 @@ export default function DedeApp() {
       setRoom(r);
     });
   }
+  function partyAction(action: Record<string, unknown>) {
+    if (!room) return;
+    void task(async () => {
+      try { setRoom(await api<Room>(`rooms/${room.id}/action`, { version: room.version, action })); }
+      catch (e) { setRoom(await api<Room>(`rooms/${room.id}`)); throw e; }
+    });
+  }
+  const selectedGameInfo = selectedGame === "meganopoly"
+    ? { title: "MÉGANOPOLY", min: 2, max: 6, description: "Les mariés, les chiens et un empire à construire." }
+    : PARTY_GAMES.find((g) => g.id === selectedGame)!;
   const me = home?.stats.find((s) => s.id === profile?.id),
     xp = (me?.played ?? 0) * 10 + (me?.wins ?? 0) * 25;
   const name = (id: string) =>
@@ -497,7 +511,7 @@ export default function DedeApp() {
                   >
                     <span>🎲</span>
                     <div>
-                      <strong>Soirée MÉGANOPOLY</strong>
+                      <strong>Soirée {r.game_id === "meganopoly" ? "MÉGANOPOLY" : PARTY_GAMES.find((g) => g.id === r.game_id)?.title ?? "jeu"}</strong>
                       <small>
                         {r.status === "playing"
                           ? "La partie est lancée"
@@ -513,7 +527,7 @@ export default function DedeApp() {
             <div className="home-actions">
               <button
                 className="dede-button"
-                onClick={() => setModal("create")}
+                onClick={() => { setSelectedGame("meganopoly"); setModal("create"); }}
               >
                 <Plus />
                 Créer une soirée
@@ -566,12 +580,21 @@ export default function DedeApp() {
               </div>
               <button
                 className="dede-button"
-                onClick={() => setModal("create")}
+                onClick={() => { setSelectedGame("meganopoly"); setModal("create"); }}
               >
                 <Play size={19} />
                 Jouer
               </button>
             </article>
+            <div className="party-game-grid">
+              {PARTY_GAMES.map((game) => (
+                <article className="sticker game-card" key={game.id}>
+                  <div className="game-title"><span className="game-emoji">{game.emoji}</span><div><h2>{game.title}</h2><p>{game.description}</p></div></div>
+                  <div className="game-meta"><span>{game.min}–{game.max} joueurs</span><span>Partage le code de la soirée</span></div>
+                  <button className="dede-button" onClick={() => { setSelectedGame(game.id); setModal("create"); }}><Play size={19}/>Jouer</button>
+                </article>
+              ))}
+            </div>
           </>
         )}
         {path === "/inventaire" && (
@@ -767,7 +790,7 @@ export default function DedeApp() {
                 <ArrowLeft size={18} />
                 Retour à l’accueil
               </button>
-              <h1>La soirée MÉGANOPOLY</h1>
+              <h1>La soirée {room.game_id === "meganopoly" ? "MÉGANOPOLY" : PARTY_GAMES.find((g) => g.id === room.game_id)?.title}</h1>
               <section className="sticker lobby-info">
                 <span className="muted small">LE CODE DE LA SOIRÉE</span>
                 <button
@@ -784,7 +807,7 @@ export default function DedeApp() {
                 </button>
                 <p className="muted">
                   {room.players.length} / {room.capacity} joueurs ·{" "}
-                  {room.round_limit} tours maximum
+                  {room.game_id === "meganopoly" ? `${room.round_limit} tours maximum` : "Partie en ligne"}
                 </p>
                 <div className="lobby-players">
                   {room.players.map((p) => {
@@ -837,7 +860,7 @@ export default function DedeApp() {
                         className="dede-button grape"
                         disabled={
                           busy ||
-                          room.players.length < 2 ||
+                          room.players.length < (room.game_id === "meganopoly" ? 2 : PARTY_GAMES.find((g) => g.id === room.game_id)?.min ?? 2) ||
                           !room.players.every((p) => p.ready)
                         }
                         onClick={() => void roomAction("start")}
@@ -856,13 +879,13 @@ export default function DedeApp() {
                       ? "À toi de jouer !"
                       : `Au tour de ${name(room.view.turn ?? "")}`}
                   </div>
-                  <button
+                  {room.game_id === "meganopoly" && <button
                     className="dede-button secondary"
                     onClick={() => setRules(!rules)}
                   >
                     📖 {rules ? "Fermer les règles" : "Les règles"}
-                  </button>
-                  {rules && (
+                  </button>}
+                  {room.game_id === "meganopoly" && rules && (
                     <section className="sticker rules">
                       <h2>Les règles de MÉGANOPOLY</h2>
                       <p>
@@ -880,8 +903,8 @@ export default function DedeApp() {
                       </p>
                     </section>
                   )}
-                  <MeganopolyGame
-                    view={room.view}
+                  {room.game_id === "meganopoly" ? <MeganopolyGame
+                    view={room.view as EngineView}
                     name={name}
                     disabled={busy}
                     onAction={(action) =>
@@ -898,13 +921,16 @@ export default function DedeApp() {
                         }
                       })
                     }
-                  />
+                  /> : <PartyGame state={room.view as PartyState & { turn: string | null; legalActions: unknown[] }} me={profile.id} name={name} disabled={busy} onAction={partyAction} />}
                 </>
               )}
               {room.status === "finished" && (
                 <section className="sticker results">
                   <div className="welcome-emoji">🏆</div>
                   <h2>Quelle soirée !</h2>
+                  {room.game_id !== "meganopoly" && <p>{(room.view as PartyState | null)?.prompt}</p>}
+                  {room.game_id === "undercover" && <p>Mot : {(room.view as PartyState).data.reveal?.word} · infiltré : {name((room.view as PartyState).data.reveal?.undercover ?? "")}</p>}
+                  {room.game_id === "dessine-devine" && <p>Mot : {(room.view as PartyState).data.revealWord}</p>}
                   {room.view?.ranking.map((id, i) => (
                     <div className="result-line" key={id}>
                       <b>{i + 1}.</b>
@@ -1027,7 +1053,7 @@ export default function DedeApp() {
             </h2>
             <p className="muted">
               {modal === "create"
-                ? "Les mariés, les chiens et vous !"
+                ? selectedGameInfo.description
                 : "Demande le code à l’autre joueur."}
             </p>
             <form
@@ -1039,6 +1065,7 @@ export default function DedeApp() {
                   const r =
                     modal === "create"
                       ? await api<{ id: string }>("rooms", {
+                          gameId: selectedGame,
                           capacity: Number(f.get("capacity")),
                           bots: Number(f.get("bots")),
                           roundLimit: Number(f.get("rounds")),
@@ -1056,8 +1083,8 @@ export default function DedeApp() {
                 <>
                   <label>
                     Nombre de places
-                    <select name="capacity" defaultValue="2">
-                      {[2, 3, 4, 5, 6].map((n) => (
+                    <select name="capacity" defaultValue={String(selectedGameInfo.max)}>
+                      {Array.from({ length: selectedGameInfo.max - selectedGameInfo.min + 1 }, (_, i) => selectedGameInfo.min + i).map((n) => (
                         <option key={n} value={n}>
                           {n} joueurs
                         </option>
@@ -1070,8 +1097,8 @@ export default function DedeApp() {
                       name="bots"
                       type="number"
                       min="0"
-                      max="5"
-                      defaultValue="0"
+                      max={String(selectedGameInfo.max - 1)}
+                      defaultValue={String(selectedGameInfo.min - 1)}
                       required
                     />
                   </label>
