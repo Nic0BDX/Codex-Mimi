@@ -360,6 +360,11 @@ export default function DedeApp() {
         {feedback}
         {picked ? (
           <>
+            <header className="onboarding-brand">
+              <span className="welcome-emoji" aria-hidden="true">🎲</span>
+              <h1>{siteConfig.title}</h1>
+              <p className="muted">Bienvenue, {picked.name}</p>
+            </header>
             <button
               className="dede-back"
               onClick={() => {
