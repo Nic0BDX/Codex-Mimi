@@ -3,7 +3,8 @@ import { existsSync } from "node:fs";
 import { Pool } from "pg";
 for (const file of [".env.local", ".env"])
   if (existsSync(file)) process.loadEnvFile(file);
-if (!process.env.DATABASE_URL) {
+const databaseUrl = process.env.DATABASE_URL || process.env.POSTGRES_URL;
+if (!databaseUrl) {
   if (process.env.VERCEL_ENV === "production")
     throw Error(
       "Configure DATABASE_URL (PostgreSQL) dans Vercel avant le déploiement.",
@@ -20,7 +21,7 @@ if (!process.env.DATABASE_URL) {
     )
   ).replace(/\bmimi_nini\b/g, `"${schema}"`);
   const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
+    connectionString: databaseUrl,
     max: 1,
     connectionTimeoutMillis: 10000,
   });

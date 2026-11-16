@@ -9,10 +9,11 @@ export function databaseSchema() {
   return name;
 }
 function connection() {
-  if (!process.env.DATABASE_URL)
-    throw Error("DATABASE_URL doit être configurée sur Vercel.");
+  const databaseUrl = process.env.DATABASE_URL || process.env.POSTGRES_URL;
+  if (!databaseUrl)
+    throw Error("DATABASE_URL ou POSTGRES_URL doit être configurée sur Vercel.");
   pool ??= new Pool({
-    connectionString: process.env.DATABASE_URL,
+    connectionString: databaseUrl,
     max: 3,
     idleTimeoutMillis: 20000,
     connectionTimeoutMillis: 10000,
