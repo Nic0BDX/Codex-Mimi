@@ -1,0 +1,48 @@
+// Configuration modifiable des deux profils et de la soirée.
+export const siteConfig = {
+  title: "Les Soirées de Mimi et Nini",
+  subtitle: "Les mini-jeux de la bande",
+  game: "MÉGANOPOLY",
+  profiles: [
+    {
+      id: "nini",
+      name: "Nini",
+      avatar: "nini",
+      color: "#7AE582",
+      expressions: [
+        "joie",
+        "colere",
+        "pleurs",
+        "boude",
+        "reflexion",
+        "dodo",
+        "bisou",
+        "clin_oeil",
+        "surprise",
+        "pouces",
+        "timide",
+        "gamer",
+      ],
+    },
+    {
+      id: "cherie",
+      name: "Mimi",
+      avatar: "cycy",
+      color: "#FF8FA3",
+      expressions: [
+        "joie",
+        "colere",
+        "pleurs",
+        "boude",
+        "reflexion",
+        "dodo",
+        "bisou",
+        "clin_oeil",
+        "surprise",
+        "amoureux",
+        "cool",
+        "gamer",
+      ],
+    },
+  ],
+};

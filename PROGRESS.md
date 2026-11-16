@@ -1,0 +1,6 @@
+- [x] Reprendre l’interface et les ressources des Soirées de Dédé.
+- [x] Proposer seulement Nini et un second profil renommable pour sa copine.
+- [x] Conserver MÉGANOPOLY et retirer les anciens jeux de l’interface.
+- [x] Connexion PIN, sauvegarde, soirées, invitations, chat et statistiques persistants.
+- [x] Tester les deux profils, les parties à deux et contre un robot, sur mobile et ordinateur.
+- [ ] Publier la copie et les sources dans Codex-Mimi, puis écrire RAPPORT_FINAL.md.

@@ -1,0 +1,23 @@
+{
+  "checkedAt": "2026-11-16T19:20:55.632Z",
+  "results": [
+    {
+      "twoProfiles": true,
+      "separatePins": true,
+      "create": true,
+      "invite": true,
+      "join": true,
+      "ready": true,
+      "start": true,
+      "dice": true,
+      "chat": true,
+      "reload": true,
+      "inventory": true,
+      "theme": true,
+      "logout": true,
+      "botAdvanced": true,
+      "overflow": false,
+      "pageErrors": 0
+    }
+  ]
+}

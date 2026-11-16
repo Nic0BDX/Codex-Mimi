@@ -1,0 +1,5 @@
+- Le dépôt Codex-Mimi fourni est vide : créer une nouvelle base autonome, sans réutiliser le serveur Supabase ou les comptes de soiree-dede.vercel.app.
+- Reprendre l’interface crème/violet/orange, les illustrations et la navigation des Soirées de Dédé ; conserver uniquement MÉGANOPOLY parmi les jeux précédents.
+- Deux profils uniquement : Nini et Mimi, conformément au titre demandé. Les surnoms restent modifiables ; l’illustration féminine Cycy sert d’avatar sans supposer son identité.
+- Chaque profil choisit son PIN à quatre chiffres à la première connexion ; PIN haché, limitation des essais et sessions persistantes côté serveur.
+- Hébergement Sites privé par défaut, avec D1 indépendant et sources modifiables destinées au dépôt Codex-Mimi.
