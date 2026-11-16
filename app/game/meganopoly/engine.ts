@@ -7,8 +7,8 @@ import {
   requireTurn,
   shuffle,
   status,
-} from '../engine/types.js';
-import { estateBoard, estateCards, estateRents, housePrice } from './board.js';
+} from '../engine/types';
+import { estateBoard, estateCards, estateRents, housePrice } from './board';
 
 const auctionSchema = z.object({
   property: z.number(),

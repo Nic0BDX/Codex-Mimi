@@ -7,3 +7,9 @@
 
 Publication privée confirmée : https://soiree-nini-copie.coralaspen259.chatgpt.site.
 Sources : https://github.com/Nic0BDX/Codex-Mimi, branche main.
+
+- [x] Adapter le dépôt à Vercel et PostgreSQL, vérifier les deux profils et publier la configuration.
+
+Version Vercel : compilation Next.js de production réussie, schéma PostgreSQL
+isolé, parcours complet des deux profils et robot validés sur le serveur compilé.
+L’utilisateur effectue le déploiement Vercel après configuration de `DATABASE_URL`.

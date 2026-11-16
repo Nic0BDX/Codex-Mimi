@@ -3,3 +3,4 @@
 - Deux profils uniquement : Nini et Mimi, conformément au titre demandé. Les surnoms restent modifiables ; l’illustration féminine Cycy sert d’avatar sans supposer son identité.
 - Chaque profil choisit son PIN à quatre chiffres à la première connexion ; PIN haché, limitation des essais et sessions persistantes côté serveur.
 - Hébergement Sites privé par défaut, avec D1 indépendant et sources modifiables destinées au dépôt Codex-Mimi.
+- À la demande de l’utilisateur, le dépôt cible désormais Vercel : Next.js standard et PostgreSQL, schéma isolé `mimi_nini`. Le prototype privé Sites est conservé ; le déploiement Vercel sera effectué par l’utilisateur.

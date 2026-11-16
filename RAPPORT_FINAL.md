@@ -1,6 +1,6 @@
 # Les Soirées de Mimi et Nini
 
-Publication privée confirmée sur
+Prototype privé initial confirmé sur
 https://soiree-nini-copie.coralaspen259.chatgpt.site.
 Les sources sont publiées dans https://github.com/Nic0BDX/Codex-Mimi, branche `main`.
 
@@ -16,12 +16,12 @@ publiées dans la base distante.
 
 MÉGANOPOLY est le seul jeu conservé : plateau et cartes, robots, achats, loyers,
 enchères, constructions, hypothèques, échanges, prison et faillites. Les soirées,
-messages, invitations et résultats sont persistés dans D1, avec vérification du
+messages, invitations et résultats sont persistés dans PostgreSQL pour la version Vercel, avec vérification du
 joueur et contrôle de version pour chaque action de jeu.
 
 ## Vérifications
 
-- TypeScript et compilation du Worker réussis.
+- TypeScript et compilation Next.js de production réussis pour Vercel.
 - 90 parties simulées à 2, 3 et 6 joueurs, sans blocage et sans solde négatif.
 - Deux navigateurs isolés : PIN distincts, création, invitation, code de salon,
   confirmations, démarrage, dés, chat, rechargement, inventaire, thème et déconnexion.
@@ -40,8 +40,20 @@ compilation destinée à l’hébergement est également validée.
 - `app/soiree.css` : couleurs, formes et espacements.
 - `app/components/MeganopolyGame.tsx` et `app/game/meganopoly/` : plateau et règles.
 - `app/api/[...path]/route.ts` : profils, sessions, parties et chat.
-- `db/schema.ts` et `drizzle/` : schéma et migration.
+- `db/vercel.ts` et `db/migrations/001-postgres.sql` : PostgreSQL et migration Vercel.
 
 Les petits textes illisibles de l’image MÉGANOPOLY restent adaptés en français.
 Les robots et échéances progressent pendant qu’un participant consulte sa soirée.
 Le site est créé avec une audience privée ; l’audience ne change pas implicitement.
+
+## Préparation Vercel
+
+À la demande de l’utilisateur, le dépôt principal cible Next.js standard sur
+Vercel. Une connexion `DATABASE_URL` est requise ; la migration automatique utilise
+un schéma séparé `mimi_nini`. Le déploiement Vercel reste à effectuer par
+l’utilisateur. Le prototype Sites précédent reste distinct et ne reçoit pas
+cette adaptation PostgreSQL.
+La compilation Next.js de production puis le parcours Chrome complet ont été
+validés avec PostgreSQL : PIN séparés, soirée à deux, invitation, chat, reprise,
+inventaire, thème, déconnexion et robot. La vérification des origines utilise le
+nom d’hôte public et les cookies tiennent compte du proxy HTTPS de Vercel.

@@ -9,13 +9,31 @@ Les sources se modifient dans `app/config.ts` (titre et profils),
 `app/components/DedeApp.tsx` (écrans), `app/soiree.css` (style),
 `app/game/meganopoly/` (règles) et `app/api/[...path]/route.ts` (serveur).
 Chaque profil choisit son PIN à la première connexion. Les données sont persistées
-dans une base D1 séparée ; les PIN de test locaux ne sont pas publiés.
+dans PostgreSQL, dans le schéma séparé `mimi_nini` ; les PIN de test locaux ne sont pas publiés.
 
-Installation : `npm run install:ci`. Compilation : `npm run build`.
+Installation : `npm ci`. Compilation : `npm run build`.
 Vérification du moteur : `node tools/test-engine.mjs`. Prévisualisation complète :
-`npm run start` après application de la migration locale décrite ci-dessous.
+`npm run start` après compilation.
 
-## Référence du socle technique
+## Déployer sur Vercel
+
+1. Importer `Nic0BDX/Codex-Mimi`, branche `main`, dossier racine `./`. Framework : **Next.js**.
+2. Connecter PostgreSQL (par exemple l’intégration Neon de Vercel) et définir
+   `DATABASE_URL` pour Production et Preview. Ne pas utiliser de préfixe `NEXT_PUBLIC_`.
+3. Déployer. `vercel.json` configure la compilation et `npm run build` prépare
+   automatiquement le schéma avant de compiler Next.js. La migration est
+   idempotente et ne supprime aucun compte ni aucune partie.
+
+Le premier accès permet à Nini et Mimi de choisir chacun leur PIN.
+Sans `DATABASE_URL`, la compilation Vercel de production s’arrête avec un message
+de configuration ; une base est nécessaire à la connexion et aux sauvegardes.
+
+En local, copier `.env.example` vers `.env.local`, renseigner la connexion,
+exécuter `npm run db:migrate`, puis `npm run dev`.
+Le schéma se trouve dans `db/migrations/001-postgres.sql` ; l’accès serveur dans
+`db/vercel.ts`. `DATABASE_SCHEMA` permet d’utiliser un autre espace de tables.
+
+## Ancienne référence du prototype Cloudflare (hors déploiement Vercel)
 
 A clean full-stack starter running on [vinext](https://github.com/cloudflare/vinext), with optional Cloudflare D1 and Drizzle support.
 

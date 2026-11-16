@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { EstateView } from '../meganopoly/view.js';
+import type { EstateView } from '../meganopoly/view';
 
 export const gameTypeSchema = z.enum([
   'morpion',

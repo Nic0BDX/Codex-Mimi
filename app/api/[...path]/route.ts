@@ -1,7 +1,11 @@
-import { env } from "cloudflare:workers";
+import { database } from "../../../db/vercel";
 import { siteConfig } from "../../config";
 import { meganopoly, estateStateSchema } from "../../game/meganopoly/engine";
 import type { CoreState } from "../../game/engine/types";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const maxDuration = 30;
 
 type Profile = {
   id: string;
@@ -28,7 +32,7 @@ type Room = {
   created: number;
   winner: string | null;
 };
-const db = () => env.DB!;
+const db = database;
 const token = () =>
   [...crypto.getRandomValues(new Uint8Array(32))]
     .map((n) => n.toString(16).padStart(2, "0"))
@@ -59,8 +63,11 @@ const cookie = (req: Request, name: string) =>
     .map((s) => s.trim())
     .find((s) => s.startsWith(name + "="))
     ?.slice(name.length + 1) || "";
+const secureRequest = (req: Request) =>
+  new URL(req.url).protocol === "https:" ||
+  req.headers.get("x-forwarded-proto")?.split(",")[0]?.trim() === "https";
 const names = (req: Request) =>
-  new URL(req.url).protocol === "https:"
+  secureRequest(req)
     ? { session: "__Host-nini-session", csrf: "__Host-nini-csrf" }
     : { session: "nini-session", csrf: "nini-csrf" };
 const setCookie = (
@@ -70,7 +77,7 @@ const setCookie = (
   httpOnly = false,
   maxAge = 2592000,
 ) =>
-  `${name}=${value}; Path=/; SameSite=Lax; Max-Age=${maxAge}${new URL(req.url).protocol === "https:" ? "; Secure" : ""}${httpOnly ? "; HttpOnly" : ""}`;
+  `${name}=${value}; Path=/; SameSite=Lax; Max-Age=${maxAge}${secureRequest(req) ? "; Secure" : ""}${httpOnly ? "; HttpOnly" : ""}`;
 class Failure extends Error {
   constructor(
     public code: number,
@@ -113,7 +120,7 @@ async function seed() {
     siteConfig.profiles.map((p) =>
       db()
         .prepare(
-          "INSERT OR IGNORE INTO profiles (id,name,avatar) VALUES (?,?,?)",
+          "INSERT INTO profiles (id,name,avatar) VALUES (?,?,?) ON CONFLICT (id) DO NOTHING",
         )
         .bind(p.id, p.name, p.avatar),
     ),
@@ -228,7 +235,7 @@ function view(r: Room, p: Profile) {
 async function stats() {
   return db()
     .prepare(
-      "SELECT p.id,p.name,p.avatar,p.expression,(SELECT COUNT(*) FROM rooms r WHERE r.status='finished' AND r.state IS NOT NULL AND EXISTS(SELECT 1 FROM json_each(r.players) a WHERE json_extract(a.value,'$.id')=p.id)) AS played,(SELECT COUNT(*) FROM rooms r WHERE r.winner=p.id AND r.status='finished') AS wins FROM profiles p",
+      "SELECT p.id,p.name,p.avatar,p.expression,(SELECT COUNT(*) FROM rooms r WHERE r.status='finished' AND r.state IS NOT NULL AND EXISTS(SELECT 1 FROM jsonb_array_elements(r.players::jsonb) a WHERE a->>'id'=p.id)) AS played,(SELECT COUNT(*) FROM rooms r WHERE r.winner=p.id AND r.status='finished') AS wins FROM profiles p",
     )
     .all();
 }
@@ -246,11 +253,25 @@ async function dispatch(req: Request, headers: Headers) {
   const n = names(req);
   if (method !== "GET" && method !== "HEAD") {
     const origin = req.headers.get("origin");
-    requireRule(
-      !origin || origin === new URL(req.url).origin,
-      "Origine invalide.",
-      403,
-    );
+    let originAllowed = !origin;
+    if (origin) {
+      try {
+        const parsed = new URL(origin);
+        const host = (
+          process.env.VERCEL === "1"
+            ? req.headers.get("x-forwarded-host") || req.headers.get("host")
+            : req.headers.get("host")
+        )
+          ?.split(",")[0]
+          ?.trim();
+        originAllowed =
+          ["http:", "https:"].includes(parsed.protocol) &&
+          (parsed.host === host || origin === new URL(req.url).origin);
+      } catch {
+        originAllowed = false;
+      }
+    }
+    requireRule(originAllowed, "Origine invalide.", 403);
     const csrf = cookie(req, n.csrf);
     requireRule(
       /^[a-f0-9]{64}$/.test(csrf) && csrf === req.headers.get("x-csrf-token"),
@@ -345,7 +366,7 @@ async function dispatch(req: Request, headers: Headers) {
   if (path[0] === "home") {
     const rooms = await db()
       .prepare(
-        "SELECT id,code,host,status,players,created FROM rooms r WHERE status IN ('lobby','playing') AND EXISTS(SELECT 1 FROM json_each(r.players) a WHERE json_extract(a.value,'$.id')=?) ORDER BY created DESC LIMIT 10",
+        "SELECT id,code,host,status,players,created FROM rooms r WHERE status IN ('lobby','playing') AND EXISTS(SELECT 1 FROM jsonb_array_elements(r.players::jsonb) a WHERE a->>'id'=?) ORDER BY created DESC LIMIT 10",
       )
       .bind(p.id)
       .all();
